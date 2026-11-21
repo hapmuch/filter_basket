@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Filter Basket</title>
+  <desc>A funnel filtering values into a basket of selected values</desc>
+
+  <!-- Funnel -->
+  <path d="M10 8 H54 L36 28 V38 L28 42 V28 Z"
+        fill="#5B9BD5" stroke="#2C5F8A" stroke-width="2.5" stroke-linejoin="round"/>
+
+  <!-- Basket rim and body -->
+  <path d="M12 46 H52" stroke="#2C6EAA" stroke-width="3" stroke-linecap="round"/>
+  <path d="M14 46 H50 L45 60 H19 Z"
+        fill="none" stroke="#2C6EAA" stroke-width="3" stroke-linejoin="round"/>
+
+  <!-- Selected values collected in the basket -->
+  <circle cx="26" cy="52" r="3" fill="#E8912D"/>
+  <circle cx="38" cy="52" r="3" fill="#E8912D"/>
+  <circle cx="32" cy="57" r="3" fill="#E8912D"/>
+</svg>
