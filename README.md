@@ -31,7 +31,7 @@ A detailed [User Guide (PDF)](Filter_Basket_User_Guide.PDF) with worked examples
 3. Open **Plugins > Manage and Install Plugins > Installed** and enable **Filter Basket**.
 4. A toolbar button and a Plugins menu entry appear.
 
-Keep all files together, including `metadata.txt` and `filter_basket.svg`.
+
 
 ## Quick start
 
