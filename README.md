@@ -55,18 +55,6 @@ A detailed [User Guide (PDF)](Filter_Basket_User_Guide.pdf) with worked examples
 | Selected Target | Values used in the filter, grouped under Group Field headers |
 | Clear All | Clear values, remove the filter, and delete highlights |
 
-### Terminology changes from older versions
-
-| Old label | Current label |
-| --- | --- |
-| MR Layer | Target Layer |
-| Source Cell Field | Source Field |
-| MR Cell Field | Target Field |
-| Selected Cells | Selected Target |
-| Tower Field | Group Field |
-| Select Cell | Select Source Value |
-
-Only the displayed text changed. Saved settings use the original internal keys, so existing configurations are preserved.
 
 ### Grouped Selected Target list
 
