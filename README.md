@@ -19,9 +19,7 @@ A detailed [User Guide (PDF)](Filter_Basket_User_Guide.pdf) with worked examples
 - Highlight picked source geometries on the canvas
 - Type-aware filters for string, numeric, and boolean target fields
 - Filter re-applies when the target layer or field changes
-- Reload layers without restarting QGIS
 - Layer and field choices saved between sessions
-- Tooltips on every control, built-in Help dialog, Qt5/Qt6 support
 
 ## Installation
 
