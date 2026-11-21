@@ -4,7 +4,7 @@
 
 Filter a target vector layer using values picked from a source vector layer.
 
-Version 1.3 | QGIS 3.x and 4.x | License: GPL v3
+Version 1.4 | QGIS 3.x and 4.x | License: GPL v3
 
 A detailed [User Guide (PDF)](Filter_Basket_User_Guide.pdf) with worked examples is included in this folder.
 

@@ -1,3 +1,4 @@
+from qgis.core import QgsMessageLog
 from qgis.gui import QgsRubberBand
 
 from qgis.PyQt.QtGui import QColor
@@ -11,16 +12,27 @@ class HighlightManager:
 
         self.rubberbands = {}
 
+    def _remove_item(self, item):
+
+        try:
+            self.canvas.scene().removeItem(
+                item
+            )
+        except Exception as error:
+
+            QgsMessageLog.logMessage(
+                "Could not remove highlight: "
+                f"{error}",
+                "Filter Basket"
+            )
+
     def clear(self):
 
         for cell_map in self.rubberbands.values():
 
             for rb in cell_map.values():
 
-                try:
-                    self.canvas.scene().removeItem(rb)
-                except Exception:
-                    pass
+                self._remove_item(rb)
 
         self.rubberbands.clear()
 
@@ -56,10 +68,7 @@ class HighlightManager:
 
         if existing is not None:
 
-            try:
-                self.canvas.scene().removeItem(existing)
-            except Exception:
-                pass
+            self._remove_item(existing)
 
         self.rubberbands.setdefault(
             msc,
@@ -76,10 +85,7 @@ class HighlightManager:
 
         for rb in self.rubberbands[msc].values():
 
-            try:
-                self.canvas.scene().removeItem(rb)
-            except Exception:
-                pass
+            self._remove_item(rb)
 
         del self.rubberbands[msc]
 
@@ -97,10 +103,7 @@ class HighlightManager:
 
             rb = self.rubberbands[msc][cell]
 
-            try:
-                self.canvas.scene().removeItem(rb)
-            except Exception:
-                pass
+            self._remove_item(rb)
 
             del self.rubberbands[msc][cell]
 
