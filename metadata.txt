@@ -1,8 +1,8 @@
 [general]
 name=Filter Basket
 description=Filter a target layer using values picked from a source layer
-about=Pick values from a source layer and use them to filter a target layer. Supports grouping by a field, Shift/Ctrl-click bulk add/remove, and layer reload.
-version=1.2
+about=Pick values from a source layer and use them to filter a target layer. Supports grouping by a field, a grouped selected-values list with group headers, Shift/Ctrl-click bulk add/remove, and layer reload.
+version=1.3
 qgisMinimumVersion=3.0
 qgisMaximumVersion=4.99
 author=hafiz m.
@@ -10,7 +10,7 @@ email=medsaffan@gmail.com
 homepage=
 tracker=
 repository=
-changelog=1.2: Generic layer and field naming, tooltips, Reload Layers and Help buttons, escaped filter expressions, type-aware filtering, highlight cleanup, and settings persistence on unload.
+changelog=1.3: Grouped Selected Target list with Group Field headers, group-level removal, and shared-value handling. 1.2: Generic layer and field naming, tooltips, Reload Layers and Help buttons, escaped filter expressions, type-aware filtering, highlight cleanup, and settings persistence on unload.
 icon=filter_basket.svg
 category=Vector
 experimental=False

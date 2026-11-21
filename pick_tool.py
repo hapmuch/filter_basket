@@ -138,17 +138,7 @@ class MRPickTool(QgsMapToolIdentify):
 
         if ctrl_pressed:
 
-            for cell in cells:
-
-                self.dock.selected_cells.discard(
-                    cell
-                )
-
-            self.dock.refresh_cell_list()
-
-            self.dock.apply_filter()
-
-            self.dock.remove_highlight_for_msc(
+            self.dock.remove_group(
                 msc_value
             )
 
@@ -162,7 +152,9 @@ class MRPickTool(QgsMapToolIdentify):
         if shift_pressed:
 
             self.dock.add_cells(
-                list(cells)
+                list(cells),
+                msc_value,
+                tower_field
             )
 
             self.dock.highlight_features(
@@ -201,7 +193,9 @@ class MRPickTool(QgsMapToolIdentify):
                 return
 
             self.dock.add_cells(
-                selected
+                selected,
+                msc_value,
+                tower_field
             )
 
             selected_features = []

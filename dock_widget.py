@@ -7,6 +7,7 @@ from qgis.PyQt.QtWidgets import (
     QLabel,
     QPushButton,
     QListWidget,
+    QListWidgetItem,
     QComboBox,
     QMenu,
     QScrollArea,
@@ -20,6 +21,7 @@ from qgis.core import (
 )
 from .pick_tool import MRPickTool
 from .highlight_manager import HighlightManager
+from qgis.PyQt.QtGui import QFont
 from qgis.PyQt.QtCore import (
     Qt,
     QEvent,
@@ -28,6 +30,9 @@ from qgis.PyQt.QtCore import (
 
 
 class MRFilterDock(QDockWidget):
+
+    HEADER_ROLE = int(Qt.ItemDataRole.UserRole)
+    GROUP_ROLE = int(Qt.ItemDataRole.UserRole) + 1
 
     def __init__(self, iface):
 
@@ -38,6 +43,10 @@ class MRFilterDock(QDockWidget):
         self.settings = QgsSettings()
 
         self.selected_cells = set()
+
+        self.selected_by_group = {}
+
+        self.group_fields = {}
 
         self.pick_tool = None
 
@@ -185,8 +194,10 @@ class MRFilterDock(QDockWidget):
         self.cell_list = QListWidget()
 
         self.cell_list.setToolTip(
-            "Values used to filter the target layer. Press Delete "
-            "or right-click an item to remove it."
+            "Values used to filter the target layer, grouped by the "
+            "Group Field. Press Delete or right-click a value to "
+            "remove it; right-click a group header to remove the "
+            "whole group."
         )
 
         self.cell_list.setMinimumHeight(
@@ -468,10 +479,89 @@ class MRFilterDock(QDockWidget):
 
     # -----------------------------------------------------
 
-    def add_cells(self, cells):
+    def sync_selected_cells(self):
 
-        self.selected_cells.update(
-            cells
+        self.selected_cells = set()
+
+        for cells in self.selected_by_group.values():
+
+            self.selected_cells.update(
+                cells
+            )
+
+    # -----------------------------------------------------
+
+    def add_cells(self, cells, group, group_field):
+
+        cells = set(cells)
+
+        if not cells:
+            return
+
+        group_values = self.selected_by_group.setdefault(
+            group,
+            set()
+        )
+
+        group_values.update(cells)
+
+        self.group_fields[group] = group_field
+
+        self.sync_selected_cells()
+
+        self.refresh_cell_list()
+
+        self.apply_filter()
+
+    # -----------------------------------------------------
+
+    def remove_value(self, value):
+
+        for group in list(
+            self.selected_by_group.keys()
+        ):
+
+            self.selected_by_group[group].discard(
+                value
+            )
+
+            if not self.selected_by_group[group]:
+
+                del self.selected_by_group[group]
+
+                self.group_fields.pop(
+                    group,
+                    None
+                )
+
+        self.sync_selected_cells()
+
+        self.highlight_manager.remove_cell(
+            value
+        )
+
+        self.refresh_cell_list()
+
+        self.apply_filter()
+
+    # -----------------------------------------------------
+
+    def remove_group(self, group):
+
+        if group not in self.selected_by_group:
+            return
+
+        del self.selected_by_group[group]
+
+        self.group_fields.pop(
+            group,
+            None
+        )
+
+        self.sync_selected_cells()
+
+        self.remove_highlight_for_msc(
+            group
         )
 
         self.refresh_cell_list()
@@ -484,13 +574,63 @@ class MRFilterDock(QDockWidget):
 
         self.cell_list.clear()
 
-        for cell in sorted(
-            self.selected_cells
+        bold_font = QFont(
+            self.cell_list.font()
+        )
+
+        bold_font.setBold(True)
+
+        for group in sorted(
+            self.selected_by_group
         ):
 
-            self.cell_list.addItem(
-                cell
+            field_name = self.group_fields.get(
+                group,
+                "Group Field"
             )
+
+            header = QListWidgetItem(
+                f"Group ({field_name}): {group}"
+            )
+
+            header.setFlags(
+                Qt.ItemFlag.ItemIsEnabled
+            )
+
+            header.setFont(
+                bold_font
+            )
+
+            header.setData(
+                self.HEADER_ROLE,
+                True
+            )
+
+            header.setData(
+                self.GROUP_ROLE,
+                group
+            )
+
+            self.cell_list.addItem(
+                header
+            )
+
+            for cell in sorted(
+                self.selected_by_group[group]
+            ):
+
+                item = QListWidgetItem(
+                    cell
+                )
+
+                item.setData(
+                    self.GROUP_ROLE,
+                    group
+                )
+
+                self.cell_list.addItem(
+                    item
+                )
 
     # -----------------------------------------------------
 
@@ -592,6 +732,10 @@ class MRFilterDock(QDockWidget):
 
         self.selected_cells.clear()
 
+        self.selected_by_group.clear()
+
+        self.group_fields.clear()
+
         self.refresh_cell_list()
 
         self.apply_filter()
@@ -607,31 +751,36 @@ class MRFilterDock(QDockWidget):
         if not item:
             return
 
+        is_header = bool(
+            item.data(self.HEADER_ROLE)
+        )
+
         menu = QMenu()
 
-        remove_action = menu.addAction(
-            "Remove"
-        )
+        if is_header:
+            remove_action = menu.addAction(
+                "Remove group"
+            )
+        else:
+            remove_action = menu.addAction(
+                "Remove"
+            )
 
         action = menu.exec(
             self.cell_list.mapToGlobal(pos)
         )
 
-        if action == remove_action:
+        if action != remove_action:
+            return
 
-            cell = item.text()
-
-            self.selected_cells.discard(
-                cell
+        if is_header:
+            self.remove_group(
+                item.data(self.GROUP_ROLE)
             )
-
-            self.highlight_manager.remove_cell(
-                cell
+        else:
+            self.remove_value(
+                item.text()
             )
-
-            self.refresh_cell_list()
-
-            self.apply_filter()
 
     # -----------------------------------------------------
 
@@ -748,21 +897,13 @@ class MRFilterDock(QDockWidget):
 
                     item = self.cell_list.currentItem()
 
-                    if item:
+                    if item and not item.data(
+                        self.HEADER_ROLE
+                    ):
 
-                        cell = item.text()
-
-                        self.selected_cells.discard(
-                            cell
+                        self.remove_value(
+                            item.text()
                         )
-
-                        self.highlight_manager.remove_cell(
-                            cell
-                        )
-
-                        self.refresh_cell_list()
-
-                        self.apply_filter()
 
                     return True
 
