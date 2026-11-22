@@ -1,16 +1,25 @@
-from qgis.gui import QgsMapToolIdentify
+from qgis.gui import QgsMapToolIdentify, QgsRubberBand
 
 from qgis.core import (
-    QgsFeatureRequest
+    QgsCoordinateTransform,
+    QgsFeatureRequest,
+    QgsGeometry,
+    QgsProject,
+    QgsRectangle,
+    QgsWkbTypes,
 )
 
 from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtGui import QColor
 
 from .sector_dialog import SectorDialog
 from .feature_picker_dialog import FeaturePickerDialog
+from .multi_group_dialog import MultiGroupDialog
 
 
 class MRPickTool(QgsMapToolIdentify):
+
+    DRAG_THRESHOLD_PX = 5
 
     def __init__(self, iface, dock):
 
@@ -20,19 +29,193 @@ class MRPickTool(QgsMapToolIdentify):
 
         self.iface = iface
         self.dock = dock
+        self._start_pos = None
+        self._rubber_band = None
+        self._dragging = False
+
+    def canvasPressEvent(self, event):
+
+        if event.button() != Qt.MouseButton.LeftButton:
+            return
+
+        self._start_pos = event.pos()
+        self._dragging = False
+        self._clear_rubber_band()
+
+    def canvasMoveEvent(self, event):
+
+        if self._start_pos is None:
+            return
+
+        if not (event.buttons() & Qt.MouseButton.LeftButton):
+            return
+
+        delta = event.pos() - self._start_pos
+        if (not self._dragging and
+                delta.manhattanLength() <= self.DRAG_THRESHOLD_PX):
+            return
+
+        self._dragging = True
+        self._update_rubber_band(event.pos())
 
     def canvasReleaseEvent(self, event):
 
+        if event.button() != Qt.MouseButton.LeftButton:
+            return
 
-        mods = event.modifiers()
+        was_dragging = self._dragging
+        start_pos = self._start_pos
+        self._start_pos = None
+        self._dragging = False
+        self._clear_rubber_band()
 
-        shift_pressed = bool(
-            mods & Qt.KeyboardModifier.ShiftModifier
+        if was_dragging and start_pos is not None:
+            self._handle_rectangle(start_pos, event.pos())
+            return
+
+        self._handle_click(event)
+
+    def deactivate(self):
+
+        self._clear_rubber_band()
+        self._start_pos = None
+        self._dragging = False
+        super().deactivate()
+
+    def _clear_rubber_band(self):
+
+        if self._rubber_band is None:
+            return
+
+        self.canvas().scene().removeItem(
+            self._rubber_band
+        )
+        self._rubber_band = None
+
+    def _update_rubber_band(self, current_pos):
+
+        start = self.toMapCoordinates(self._start_pos)
+        end = self.toMapCoordinates(current_pos)
+        rect = QgsRectangle(start, end)
+
+        if self._rubber_band is None:
+            self._rubber_band = QgsRubberBand(
+                self.canvas(),
+                QgsWkbTypes.PolygonGeometry
+            )
+            self._rubber_band.setColor(
+                QColor(224, 123, 57, 80)
+            )
+            self._rubber_band.setStrokeColor(
+                QColor(224, 123, 57)
+            )
+            self._rubber_band.setWidth(2)
+
+        geom = QgsGeometry.fromRect(rect)
+        self._rubber_band.setToGeometry(geom, None)
+
+    def _handle_rectangle(self, start_pos, end_pos):
+
+        layer = self.dock.get_source_layer()
+
+        if not layer:
+            return
+
+        tower_field = (
+            self.dock.tower_field_combo.currentText()
         )
 
-        ctrl_pressed = bool(
-            mods & Qt.KeyboardModifier.ControlModifier
+        cell_field = (
+            self.dock.source_cell_field_combo.currentText()
         )
+
+        start = self.toMapCoordinates(start_pos)
+        end = self.toMapCoordinates(end_pos)
+        rect = QgsRectangle(start, end)
+
+        project = QgsProject.instance()
+        layer_rect = QgsRectangle(rect)
+        if project is not None:
+            ct = QgsCoordinateTransform(
+                project.crs(),
+                layer.crs(),
+                project
+            )
+            try:
+                layer_rect = ct.transformBoundingBox(rect)
+            except Exception:
+                layer_rect = QgsRectangle(rect)
+
+        request = QgsFeatureRequest().setFilterRect(layer_rect)
+
+        rect_geom = QgsGeometry.fromRect(layer_rect)
+        groups = {}
+        group_features = {}
+
+        for feature in layer.getFeatures(request):
+            geom = feature.geometry()
+            if geom is None or geom.isEmpty():
+                continue
+            if not geom.intersects(rect_geom):
+                continue
+
+            group_value = str(feature[tower_field])
+            cell_value = str(feature[cell_field])
+
+            if not group_value or not cell_value:
+                continue
+
+            groups.setdefault(group_value, set()).add(cell_value)
+            group_features.setdefault(group_value, {})
+            group_features[group_value].setdefault(
+                cell_value,
+                feature
+            )
+
+        if not groups:
+            return
+
+        dlg = MultiGroupDialog(
+            groups,
+            tower_field
+        )
+
+        if not dlg.exec():
+            return
+
+        selected_by_group = dlg.selected_by_group()
+
+        if not selected_by_group:
+            return
+
+        for group_value, selected_cells in selected_by_group.items():
+            if not selected_cells:
+                continue
+
+            added = self.dock.add_cells(
+                selected_cells,
+                group_value,
+                tower_field
+            )
+
+            if not added:
+                return
+
+            selected_features = []
+            for cell in selected_cells:
+                feature = group_features.get(
+                    group_value, {}
+                ).get(cell)
+                if feature is not None:
+                    selected_features.append(feature)
+
+            if selected_features:
+                self.dock.highlight_features(
+                    group_value,
+                    selected_features
+                )
+
+    def _handle_click(self, event):
 
         layer = self.dock.get_source_layer()
 
@@ -85,8 +268,6 @@ class MRPickTool(QgsMapToolIdentify):
             feature[tower_field]
         )
 
-
-
         # ---------------------------------
         # Find all cells under same MSC
         # ---------------------------------
@@ -129,35 +310,6 @@ class MRPickTool(QgsMapToolIdentify):
 
             cell_feature_map[cell] = f
 
-
-
-        if ctrl_pressed:
-
-            self.dock.remove_group(
-                msc_value
-            )
-
-            return
-
-
-
-        if shift_pressed:
-
-            self.dock.add_cells(
-                list(cells),
-                msc_value,
-                tower_field
-            )
-
-            self.dock.highlight_features(
-                msc_value,
-                list(cell_feature_map.values())
-            )
-
-            return
-
-
-
         preselected_cells = []
 
         for f in features_under_cursor:
@@ -181,11 +333,14 @@ class MRPickTool(QgsMapToolIdentify):
             if not selected:
                 return
 
-            self.dock.add_cells(
+            added = self.dock.add_cells(
                 selected,
                 msc_value,
                 tower_field
             )
+
+            if not added:
+                return
 
             selected_features = []
 

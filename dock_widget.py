@@ -11,13 +11,15 @@ from qgis.PyQt.QtWidgets import (
     QComboBox,
     QMenu,
     QScrollArea,
-    QMessageBox
+    QMessageBox,
+    QLineEdit
 )
 
 from qgis.core import (
     QgsProject,
     QgsSettings,
-    QgsVectorLayer
+    QgsVectorLayer,
+    QgsFeatureRequest
 )
 from .pick_tool import MRPickTool
 from .highlight_manager import HighlightManager
@@ -27,6 +29,7 @@ from qgis.PyQt.QtCore import (
     QEvent,
     QVariant
 )
+import copy
 
 
 class MRFilterDock(QDockWidget):
@@ -47,6 +50,9 @@ class MRFilterDock(QDockWidget):
         self.selected_by_group = {}
 
         self.group_fields = {}
+
+        self._temp_filter_snapshot = None
+        self._temp_filter_updating = False
 
         self.pick_tool = None
 
@@ -146,7 +152,8 @@ class MRFilterDock(QDockWidget):
         )
 
         self.activate_btn.setToolTip(
-            "Click a source feature on the map to pick values."
+            "Click a source feature to pick values, or drag a "
+            "rectangle to select multiple features at once."
         )
 
         layout.addWidget(
@@ -188,6 +195,41 @@ class MRFilterDock(QDockWidget):
         layout.addWidget(
             QLabel("Selected Target")
         )
+
+        temp_row1 = QHBoxLayout()
+        temp_row1.addWidget(QLabel("Include"))
+        self.temp_include_edit = QLineEdit()
+        self.temp_include_edit.setPlaceholderText("")
+        self.temp_include_edit.setToolTip(
+            "Comma-separated substrings to keep in Selected Target."
+        )
+        temp_row1.addWidget(self.temp_include_edit)
+        layout.addLayout(temp_row1)
+
+        temp_row2 = QHBoxLayout()
+        temp_row2.addWidget(QLabel("Exclude"))
+        self.temp_exclude_edit = QLineEdit()
+        self.temp_exclude_edit.setPlaceholderText("")
+        self.temp_exclude_edit.setToolTip(
+            "Comma-separated substrings to remove from Selected Target."
+        )
+        temp_row2.addWidget(self.temp_exclude_edit)
+        layout.addLayout(temp_row2)
+
+        temp_btn_row = QHBoxLayout()
+        self.preview_filter_btn = QPushButton("Preview Filter")
+        self.preview_filter_btn.setToolTip(
+            "Apply a temporary substring filter to Selected Target."
+        )
+        temp_btn_row.addWidget(self.preview_filter_btn)
+
+        self.restore_filter_btn = QPushButton("Restore Full List")
+        self.restore_filter_btn.setToolTip(
+            "Restore Selected Target to the state before Preview Filter."
+        )
+        self.restore_filter_btn.setEnabled(False)
+        temp_btn_row.addWidget(self.restore_filter_btn)
+        layout.addLayout(temp_btn_row)
 
         self.cell_list = QListWidget()
 
@@ -253,6 +295,22 @@ class MRFilterDock(QDockWidget):
             self.clear_all
         )
 
+        self.temp_include_edit.textChanged.connect(
+            self._on_temp_include_changed
+        )
+
+        self.temp_exclude_edit.textChanged.connect(
+            self._on_temp_exclude_changed
+        )
+
+        self.preview_filter_btn.clicked.connect(
+            self.preview_temp_filter
+        )
+
+        self.restore_filter_btn.clicked.connect(
+            self.restore_temp_filter
+        )
+
         self.cell_list.setContextMenuPolicy(
             Qt.ContextMenuPolicy.CustomContextMenu
         )
@@ -275,6 +333,14 @@ class MRFilterDock(QDockWidget):
         self.cell_list.installEventFilter(self)
         
     def activate_pick_tool(self):
+
+        self._temp_filter_updating = True
+        self.temp_include_edit.clear()
+        self.temp_exclude_edit.clear()
+        self._temp_filter_updating = False
+
+        if self._temp_filter_is_active():
+            self.restore_temp_filter()
 
         self.pick_tool = MRPickTool(
             self.iface,
@@ -400,10 +466,14 @@ class MRFilterDock(QDockWidget):
                 "2. Choose the Group Field (groups source features), "
                 "the Source Field (value to collect) and the Target "
                 "Field (field to filter).\n"
-                "3. Click 'Activate Pick Tool', then click a feature "
-                "on the map and tick the values to add.\n\n"
+                "3. Click 'Activate Pick Tool'. Click a feature to "
+                "pick values, or drag a rectangle to select multiple "
+                "features. Tick the values to add.\n\n"
                 "Selected values appear under 'Group (field_name): "
                 "value' headers in the list.\n\n"
+                "Use Include/Exclude and 'Preview Filter' to "
+                "temporarily filter the Selected Target list. "
+                "'Restore Full List' brings back the original list.\n\n"
                 "Right-click a value or press Delete: remove it from "
                 "the list.\n"
                 "Right-click a group header: remove the whole group.\n"
@@ -493,10 +563,14 @@ class MRFilterDock(QDockWidget):
 
     def add_cells(self, cells, group, group_field):
 
+        if self._temp_filter_is_active():
+            self._warn_temp_filter_active()
+            return False
+
         cells = set(cells)
 
         if not cells:
-            return
+            return False
 
         group_values = self.selected_by_group.setdefault(
             group,
@@ -512,10 +586,15 @@ class MRFilterDock(QDockWidget):
         self.refresh_cell_list()
 
         self.apply_filter()
+        return True
 
     # -----------------------------------------------------
 
     def remove_value(self, value):
+
+        if self._temp_filter_is_active():
+            self._warn_temp_filter_active()
+            return
 
         for group in list(
             self.selected_by_group.keys()
@@ -547,6 +626,10 @@ class MRFilterDock(QDockWidget):
     # -----------------------------------------------------
 
     def remove_group(self, group):
+
+        if self._temp_filter_is_active():
+            self._warn_temp_filter_active()
+            return
 
         if group not in self.selected_by_group:
             return
@@ -728,7 +811,195 @@ class MRFilterDock(QDockWidget):
 
     # -----------------------------------------------------
 
+    def _on_temp_include_changed(self, text):
+
+        if self._temp_filter_updating:
+            return
+
+        if not text:
+            return
+
+        self._temp_filter_updating = True
+        self.temp_exclude_edit.clear()
+        self._temp_filter_updating = False
+
+    def _on_temp_exclude_changed(self, text):
+
+        if self._temp_filter_updating:
+            return
+
+        if not text:
+            return
+
+        self._temp_filter_updating = True
+        self.temp_include_edit.clear()
+        self._temp_filter_updating = False
+
+    def _parse_temp_terms(self, text):
+
+        return [
+            term.strip().lower()
+            for term in text.split(",")
+            if term.strip()
+        ]
+
+    def _temp_filter_is_active(self):
+
+        return self._temp_filter_snapshot is not None
+
+    def _warn_temp_filter_active(self):
+
+        QMessageBox.information(
+            self,
+            "Filter Basket",
+            "Restore Full List before changing the selection."
+        )
+
+    def _snapshot_temp_filter_state(self):
+
+        self._temp_filter_snapshot = {
+            "selected_by_group": copy.deepcopy(
+                self.selected_by_group
+            ),
+            "group_fields": dict(self.group_fields),
+        }
+
+    def _rebuild_highlights_from_selection(self):
+
+        self.highlight_manager.clear()
+
+        source_layer = self.get_source_layer()
+
+        if not source_layer:
+            return
+
+        group_field = self.tower_field_combo.currentText()
+        cell_field = self.source_cell_field_combo.currentText()
+
+        if not group_field or not cell_field:
+            return
+
+        for group, cells in self.selected_by_group.items():
+            if not cells:
+                continue
+
+            escaped_field = group_field.replace('"', '""')
+            escaped_value = str(group).replace("'", "''")
+            expr = (
+                f'"{escaped_field}" = '
+                f"'{escaped_value}'"
+            )
+
+            request = QgsFeatureRequest()
+            request.setFilterExpression(expr)
+
+            selected_features = []
+            for feature in source_layer.getFeatures(request):
+                cell = str(feature[cell_field])
+                if cell in cells:
+                    selected_features.append(feature)
+
+            if selected_features:
+                self.highlight_features(
+                    str(group),
+                    selected_features
+                )
+
+    def preview_temp_filter(self):
+
+        include_terms = self._parse_temp_terms(
+            self.temp_include_edit.text()
+        )
+        exclude_terms = self._parse_temp_terms(
+            self.temp_exclude_edit.text()
+        )
+
+        if not include_terms and not exclude_terms:
+            QMessageBox.information(
+                self,
+                "Filter Basket",
+                "Enter an Include or Exclude value first."
+            )
+            return
+
+        if not self._temp_filter_snapshot:
+            self._snapshot_temp_filter_state()
+
+        snapshot_groups = self._temp_filter_snapshot[
+            "selected_by_group"
+        ]
+        snapshot_group_fields = self._temp_filter_snapshot[
+            "group_fields"
+        ]
+
+        filtered_groups = {}
+        filtered_group_fields = {}
+
+        for group, cells in snapshot_groups.items():
+            matched_cells = set()
+
+            for cell in cells:
+                cell_text = str(cell).lower()
+
+                if include_terms:
+                    if not any(
+                        term in cell_text
+                        for term in include_terms
+                    ):
+                        continue
+
+                if exclude_terms:
+                    if any(
+                        term in cell_text
+                        for term in exclude_terms
+                    ):
+                        continue
+
+                matched_cells.add(cell)
+
+            if matched_cells:
+                filtered_groups[group] = matched_cells
+                if group in snapshot_group_fields:
+                    filtered_group_fields[group] = (
+                        snapshot_group_fields[group]
+                    )
+
+        self.selected_by_group = filtered_groups
+        self.group_fields = filtered_group_fields
+        self.sync_selected_cells()
+        self.refresh_cell_list()
+        self.apply_filter()
+        self._rebuild_highlights_from_selection()
+
+        self.restore_filter_btn.setEnabled(True)
+
+    def restore_temp_filter(self):
+
+        if not self._temp_filter_snapshot:
+            return
+
+        snapshot = self._temp_filter_snapshot
+        self._temp_filter_snapshot = None
+
+        self.selected_by_group = copy.deepcopy(
+            snapshot["selected_by_group"]
+        )
+        self.group_fields = dict(snapshot["group_fields"])
+
+        self.sync_selected_cells()
+        self.refresh_cell_list()
+        self.apply_filter()
+        self._rebuild_highlights_from_selection()
+
+        self.restore_filter_btn.setEnabled(False)
+
+    # -----------------------------------------------------
+
     def clear_all(self):
+
+        self._temp_filter_snapshot = None
+        if hasattr(self, "restore_filter_btn"):
+            self.restore_filter_btn.setEnabled(False)
 
         self.selected_cells.clear()
 

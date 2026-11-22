@@ -11,10 +11,12 @@ A detailed [User Guide (PDF)](Filter_Basket_User_Guide.pdf) with worked examples
 ## Features
 
 - Pick values directly from features on the map canvas
+- Drag a rectangle to select multiple features and groups at once
 - Group related source features with a **Group Field**
 - Display selected values under headers such as `Group (site_id): SITE-01`
 - Remove a whole group from its list header
 - Resolve overlapping features with the **Select Source Value** dialog
+- Temporarily preview filtered Selected Target values with **Include/Exclude**
 - Highlight picked source geometries on the canvas
 - Type-aware filters for string, numeric, and boolean target fields
 - Filter re-applies when the target layer or field changes
@@ -35,9 +37,10 @@ A detailed [User Guide (PDF)](Filter_Basket_User_Guide.pdf) with worked examples
 1. Choose the **Source Layer** and the **Target Layer**.
 2. Choose the **Group Field**, **Source Field**, and **Target Field**.
 3. Click **Activate Pick Tool**.
-4. Click a feature on the map. If several values are found, tick the ones you want and click **Add Selected**.
+4. Click a feature on the map, or drag a rectangle to select multiple features. Tick the values you want and click **Add Selected**.
 5. The values appear under a `Group (field_name): value` header, the target layer is filtered, and the picked features are highlighted.
-6. Click **Clear All** to see the full target layer again.
+6. Optionally use **Include/Exclude** and **Preview Filter** to temporarily narrow the Selected Target list; click **Restore Full List** to return.
+7. Click **Clear All** to see the full target layer again.
 
 ## Interface
 
@@ -48,10 +51,13 @@ A detailed [User Guide (PDF)](Filter_Basket_User_Guide.pdf) with worked examples
 | Group Field | Source field whose value groups features together |
 | Source Field | Field on the source layer holding the values to collect |
 | Target Field | Field on the target layer to filter against |
-| Activate Pick Tool | Turn the map click into a value picker |
+| Activate Pick Tool | Turn map click/rectangle drag into a value picker |
 | Reload Layers | Refresh layer lists after adding layers in QGIS |
 | Help | Show a short description of the workflow |
 | Selected Target | Values used in the filter, grouped under Group Field headers |
+| Include / Exclude | Comma-separated substrings to temporarily keep or remove values in Selected Target |
+| Preview Filter | Apply the temporary Include/Exclude filter to Selected Target |
+| Restore Full List | Restore Selected Target to the state before Preview Filter |
 | Clear All | Clear values, remove the filter, and delete highlights |
 
 
@@ -66,6 +72,21 @@ Selected values are displayed under bold, non-selectable headers in the form `Gr
 | Right-click a group header | **Remove group** — remove the whole group and its highlights |
 
 If the same value belongs to more than one group it appears under each group. Removing the value removes it everywhere. Removing a group keeps a shared value in the filter as long as another group still contains it.
+
+### Rectangle selection (beta)
+
+With **Activate Pick Tool** active, drag a rectangle on the map to select multiple source features. A **Select Source Values** dialog shows all values inside the rectangle, grouped by the Group Field, with all hits checked by default. Tick or untick values as needed, then click **Add Selected**. This works across one or multiple groups.
+
+### Temporary preview filter
+
+Use **Include** or **Exclude** to temporarily narrow the Selected Target list without losing the original selection. Enter comma-separated substrings, for example `G18` or `G18,G21`, then click **Preview Filter**. Matching is case-insensitive and applies to Selected Target values.
+
+- **Include** keeps only values containing any listed substring.
+- **Exclude** removes values containing any listed substring.
+- Typing in one box clears the other.
+- **Restore Full List** restores the original selection, filter, and highlights.
+- Clicking **Activate Pick Tool** clears these boxes and restores the full list to avoid inconsistencies.
+- While Preview Filter is active, selection edits are blocked; click **Restore Full List** before picking or removing values.
 
 ## Examples
 
@@ -98,6 +119,17 @@ When several source features lie under the cursor, **Select Source Value** lists
 ### Remove a single value
 
 Right-click a value in **Selected Target** and choose **Remove**, or select it and press **Delete**. The value is removed from every group it appears in, and empty group headers disappear automatically.
+
+### Temporary preview filter example
+
+With a Selected Target list containing values from two groups:
+
+```text
+group1: BD4G18_4510324E_4, BD4G18_4510324E_5, BD4G18_4510324E_6, BD4G21_4510324E21_7, ...
+group2: BD4G18_4518333E_4, BD4G18_4518333E_5, BD4G18_4518333E_6, BD4G21_4518333E21_7, ...
+```
+
+Enter `G18` in **Include** and click **Preview Filter**. Only G18 values remain, grouped as before. Click **Restore Full List** to return the original selection.
 
 ### Numeric target fields
 
