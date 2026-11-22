@@ -13,8 +13,7 @@ A detailed [User Guide (PDF)](Filter_Basket_User_Guide.pdf) with worked examples
 - Pick values directly from features on the map canvas
 - Group related source features with a **Group Field**
 - Display selected values under headers such as `Group (site_id): SITE-01`
-- Remove a whole group from its list header or with Ctrl-click
-- Shift-click to add an entire group; Ctrl-click to remove an entire group
+- Remove a whole group from its list header
 - Resolve overlapping features with the **Select Source Value** dialog
 - Highlight picked source geometries on the canvas
 - Type-aware filters for string, numeric, and boolean target fields
@@ -65,8 +64,6 @@ Selected values are displayed under bold, non-selectable headers in the form `Gr
 | Right-click a value | Remove it from every group and update the filter |
 | Press Delete on a value | Same as Remove |
 | Right-click a group header | **Remove group** — remove the whole group and its highlights |
-| Ctrl-click a source feature | Remove that group from the list and highlights |
-| Shift-click a source feature | Add every value in that group |
 
 If the same value belongs to more than one group it appears under each group. Removing the value removes it everywhere. Removing a group keeps a shared value in the filter as long as another group still contains it.
 
@@ -90,11 +87,9 @@ Click a `SITE-01` feature, tick `SITE-01-A` and `SITE-01-B`, then click **Add Se
 "sector_id" IN ('SITE-01-A','SITE-01-B')
 ```
 
-### Add or remove a whole group
+### Remove a whole group
 
-- **Shift-click** a source feature: add every value in that group, without the dialog.
-- **Ctrl-click** a source feature: remove every value in that group and its highlights.
-- **Right-click a group header** and choose **Remove group**: same result. A shared value stays in the filter if another group still contains it.
+- **Right-click a group header** and choose **Remove group** to remove the whole group and its highlights. A shared value stays in the filter if another group still contains it.
 
 ### Overlapping features
 
@@ -137,7 +132,7 @@ The Zones layer contains district `North` with codes `N-01` and `N-02`, and dist
 "zone_code" IN ('N-01','N-02')
 ```
 
-The list shows a `Group (district): North` header above `N-01` and `N-02`. Shift-clicking a North zone adds both zones at once; Ctrl-clicking or right-clicking the header removes them. The same pattern works for any grouped data: regions and customers, departments and staff, parcels and permits, batches and orders.
+The list shows a `Group (district): North` header above `N-01` and `N-02`. Right-clicking the header removes that group. The same pattern works for any grouped data: regions and customers, departments and staff, parcels and permits, batches and orders.
 
 ### General example - Numeric keys
 

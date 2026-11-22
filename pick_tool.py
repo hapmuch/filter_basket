@@ -5,7 +5,6 @@ from qgis.core import (
 )
 
 from qgis.PyQt.QtCore import Qt
-from qgis.PyQt.QtWidgets import QApplication
 
 from .sector_dialog import SectorDialog
 from .feature_picker_dialog import FeaturePickerDialog
@@ -23,6 +22,17 @@ class MRPickTool(QgsMapToolIdentify):
         self.dock = dock
 
     def canvasReleaseEvent(self, event):
+
+
+        mods = event.modifiers()
+
+        shift_pressed = bool(
+            mods & Qt.KeyboardModifier.ShiftModifier
+        )
+
+        ctrl_pressed = bool(
+            mods & Qt.KeyboardModifier.ControlModifier
+        )
 
         layer = self.dock.get_source_layer()
 
@@ -75,19 +85,7 @@ class MRPickTool(QgsMapToolIdentify):
             feature[tower_field]
         )
 
-        # ---------------------------------
-        # Keyboard modifiers
-        # ---------------------------------
 
-        mods = QApplication.keyboardModifiers()
-
-        shift_pressed = bool(
-            mods & Qt.KeyboardModifier.ShiftModifier
-        )
-
-        ctrl_pressed = bool(
-            mods & Qt.KeyboardModifier.ControlModifier
-        )
 
         # ---------------------------------
         # Find all cells under same MSC
@@ -131,10 +129,7 @@ class MRPickTool(QgsMapToolIdentify):
 
             cell_feature_map[cell] = f
 
-        # ---------------------------------
-        # CTRL CLICK
-        # Remove MSC
-        # ---------------------------------
+
 
         if ctrl_pressed:
 
@@ -144,10 +139,7 @@ class MRPickTool(QgsMapToolIdentify):
 
             return
 
-        # ---------------------------------
-        # SHIFT CLICK
-        # Add all cells
-        # ---------------------------------
+
 
         if shift_pressed:
 
@@ -164,10 +156,7 @@ class MRPickTool(QgsMapToolIdentify):
 
             return
 
-        # ---------------------------------
-        # NORMAL CLICK
-        # Show dialog
-        # ---------------------------------
+
 
         preselected_cells = []
 

@@ -146,9 +146,7 @@ class MRFilterDock(QDockWidget):
         )
 
         self.activate_btn.setToolTip(
-            "Click a source feature on the map to pick values. "
-            "Shift-click adds the whole group, Ctrl-click removes "
-            "the whole group."
+            "Click a source feature on the map to pick values."
         )
 
         layout.addWidget(
@@ -406,10 +404,8 @@ class MRFilterDock(QDockWidget):
                 "on the map and tick the values to add.\n\n"
                 "Selected values appear under 'Group (field_name): "
                 "value' headers in the list.\n\n"
-                "Shift-click: add every value in the same group.\n"
-                "Ctrl-click: remove every value in the same group.\n"
                 "Right-click a value or press Delete: remove it from "
-                "all groups.\n"
+                "the list.\n"
                 "Right-click a group header: remove the whole group.\n"
                 "'Clear All': reset the selection, filter and "
                 "highlights.\n\n"

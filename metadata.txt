@@ -1,7 +1,7 @@
 [general]
 name=Filter Basket
-description=Filter a target layer using values picked from a source layer
-about=Pick values from a source layer and use them to filter a target layer. Supports grouping by a field, a grouped selected-values list with group headers, Shift/Ctrl-click bulk add/remove, and layer reload.
+description=Filter a target layer by selecting values from a source layer using the map picker tool.The condition for this process is that the Source Field and Target Field must share a common identifier value.
+about=Pick values from a source layer and use them to filter a target layer. Supports grouping by a field, a grouped selected-values list with group headers.
 version=1.4
 qgisMinimumVersion=3.0
 qgisMaximumVersion=4.99
