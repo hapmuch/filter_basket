@@ -357,6 +357,7 @@ class MRFilterDock(QDockWidget):
         feature_map
     ):
 
+        source_layer = self.get_source_layer()
         source_cell_field = (
             self.source_cell_field_combo.currentText()
         )
@@ -370,7 +371,8 @@ class MRFilterDock(QDockWidget):
             self.highlight_manager.add_feature(
                 msc,
                 cell,
-                feature
+                feature,
+                source_layer
             )
 
     # -----------------------------------------------------

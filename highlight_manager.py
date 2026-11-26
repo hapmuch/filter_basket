@@ -40,7 +40,8 @@ class HighlightManager:
         self,
         msc,
         cell,
-        feature
+        feature,
+        layer=None
     ):
 
         geom = feature.geometry()
@@ -58,7 +59,7 @@ class HighlightManager:
 
         rb.setToGeometry(
             geom,
-            None
+            layer
         )
 
         existing = self.rubberbands.get(
