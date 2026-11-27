@@ -85,8 +85,7 @@ Use **Include** or **Exclude** to temporarily narrow the Selected Target list wi
 - **Exclude** removes values containing any listed substring.
 - Typing in one box clears the other.
 - **Restore Full List** restores the original selection, filter, and highlights.
-- Clicking **Activate Pick Tool** clears these boxes and restores the full list to avoid inconsistencies.
-- While Preview Filter is active, selection edits are blocked; click **Restore Full List** before picking or removing values.
+- While Preview Filter is active, new map selections are added to the full list and automatically filtered by the active Include/Exclude; removals apply to the full list. Click **Restore Full List** to see all values.
 
 ## Examples
 

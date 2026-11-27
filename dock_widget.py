@@ -334,14 +334,6 @@ class MRFilterDock(QDockWidget):
         
     def activate_pick_tool(self):
 
-        self._temp_filter_updating = True
-        self.temp_include_edit.clear()
-        self.temp_exclude_edit.clear()
-        self._temp_filter_updating = False
-
-        if self._temp_filter_is_active():
-            self.restore_temp_filter()
-
         self.pick_tool = MRPickTool(
             self.iface,
             self
@@ -565,14 +557,22 @@ class MRFilterDock(QDockWidget):
 
     def add_cells(self, cells, group, group_field):
 
-        if self._temp_filter_is_active():
-            self._warn_temp_filter_active()
-            return False
-
         cells = set(cells)
 
         if not cells:
             return False
+
+        if self._temp_filter_is_active():
+            base_groups = self._temp_filter_snapshot[
+                "selected_by_group"
+            ]
+            base_group_fields = self._temp_filter_snapshot[
+                "group_fields"
+            ]
+            base_groups.setdefault(group, set()).update(cells)
+            base_group_fields[group] = group_field
+            self._apply_preview_from_snapshot()
+            return True
 
         group_values = self.selected_by_group.setdefault(
             group,
@@ -595,7 +595,20 @@ class MRFilterDock(QDockWidget):
     def remove_value(self, value):
 
         if self._temp_filter_is_active():
-            self._warn_temp_filter_active()
+            base_groups = self._temp_filter_snapshot[
+                "selected_by_group"
+            ]
+            base_group_fields = self._temp_filter_snapshot[
+                "group_fields"
+            ]
+
+            for group in list(base_groups.keys()):
+                base_groups[group].discard(value)
+                if not base_groups[group]:
+                    del base_groups[group]
+                    base_group_fields.pop(group, None)
+
+            self._apply_preview_from_snapshot()
             return
 
         for group in list(
@@ -630,7 +643,19 @@ class MRFilterDock(QDockWidget):
     def remove_group(self, group):
 
         if self._temp_filter_is_active():
-            self._warn_temp_filter_active()
+            base_groups = self._temp_filter_snapshot[
+                "selected_by_group"
+            ]
+            base_group_fields = self._temp_filter_snapshot[
+                "group_fields"
+            ]
+
+            if group not in base_groups:
+                return
+
+            del base_groups[group]
+            base_group_fields.pop(group, None)
+            self._apply_preview_from_snapshot()
             return
 
         if group not in self.selected_by_group:
@@ -849,14 +874,6 @@ class MRFilterDock(QDockWidget):
 
         return self._temp_filter_snapshot is not None
 
-    def _warn_temp_filter_active(self):
-
-        QMessageBox.information(
-            self,
-            "Filter Basket",
-            "Restore Full List before changing the selection."
-        )
-
     def _snapshot_temp_filter_state(self):
 
         self._temp_filter_snapshot = {
@@ -907,37 +924,12 @@ class MRFilterDock(QDockWidget):
                     selected_features
                 )
 
-    def preview_temp_filter(self):
-
-        include_terms = self._parse_temp_terms(
-            self.temp_include_edit.text()
-        )
-        exclude_terms = self._parse_temp_terms(
-            self.temp_exclude_edit.text()
-        )
-
-        if not include_terms and not exclude_terms:
-            QMessageBox.information(
-                self,
-                "Filter Basket",
-                "Enter an Include or Exclude value first."
-            )
-            return
-
-        if not self._temp_filter_snapshot:
-            self._snapshot_temp_filter_state()
-
-        snapshot_groups = self._temp_filter_snapshot[
-            "selected_by_group"
-        ]
-        snapshot_group_fields = self._temp_filter_snapshot[
-            "group_fields"
-        ]
+    def _filter_groups_by_terms(self, groups, group_fields, include_terms, exclude_terms):
 
         filtered_groups = {}
         filtered_group_fields = {}
 
-        for group, cells in snapshot_groups.items():
+        for group, cells in groups.items():
             matched_cells = set()
 
             for cell in cells:
@@ -961,10 +953,43 @@ class MRFilterDock(QDockWidget):
 
             if matched_cells:
                 filtered_groups[group] = matched_cells
-                if group in snapshot_group_fields:
+                if group in group_fields:
                     filtered_group_fields[group] = (
-                        snapshot_group_fields[group]
+                        group_fields[group]
                     )
+
+        return filtered_groups, filtered_group_fields
+
+    def _apply_preview_from_snapshot(self):
+
+        include_terms = self._parse_temp_terms(
+            self.temp_include_edit.text()
+        )
+        exclude_terms = self._parse_temp_terms(
+            self.temp_exclude_edit.text()
+        )
+
+        if not include_terms and not exclude_terms:
+            return False
+
+        if not self._temp_filter_snapshot:
+            self._snapshot_temp_filter_state()
+
+        snapshot_groups = self._temp_filter_snapshot[
+            "selected_by_group"
+        ]
+        snapshot_group_fields = self._temp_filter_snapshot[
+            "group_fields"
+        ]
+
+        filtered_groups, filtered_group_fields = (
+            self._filter_groups_by_terms(
+                snapshot_groups,
+                snapshot_group_fields,
+                include_terms,
+                exclude_terms
+            )
+        )
 
         self.selected_by_group = filtered_groups
         self.group_fields = filtered_group_fields
@@ -972,8 +997,27 @@ class MRFilterDock(QDockWidget):
         self.refresh_cell_list()
         self.apply_filter()
         self._rebuild_highlights_from_selection()
-
         self.restore_filter_btn.setEnabled(True)
+        return True
+
+    def preview_temp_filter(self):
+
+        include_terms = self._parse_temp_terms(
+            self.temp_include_edit.text()
+        )
+        exclude_terms = self._parse_temp_terms(
+            self.temp_exclude_edit.text()
+        )
+
+        if not include_terms and not exclude_terms:
+            QMessageBox.information(
+                self,
+                "Filter Basket",
+                "Enter an Include or Exclude value first."
+            )
+            return
+
+        self._apply_preview_from_snapshot()
 
     def restore_temp_filter(self):
 

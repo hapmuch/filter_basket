@@ -11,6 +11,7 @@ from qgis.core import (
 
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtWidgets import QMessageBox
 
 from .sector_dialog import SectorDialog
 from .feature_picker_dialog import FeaturePickerDialog
@@ -188,6 +189,9 @@ class MRPickTool(QgsMapToolIdentify):
         if not selected_by_group:
             return
 
+        total_picked = 0
+        total_visible = 0
+
         for group_value, selected_cells in selected_by_group.items():
             if not selected_cells:
                 continue
@@ -201,19 +205,39 @@ class MRPickTool(QgsMapToolIdentify):
             if not added:
                 return
 
+            visible_cells = self.dock.selected_by_group.get(
+                group_value, set()
+            )
             selected_features = []
             for cell in selected_cells:
+                if cell not in visible_cells:
+                    continue
+                total_visible += 1
                 feature = group_features.get(
                     group_value, {}
                 ).get(cell)
                 if feature is not None:
                     selected_features.append(feature)
 
+            total_picked += len(selected_cells)
+
             if selected_features:
                 self.dock.highlight_features(
                     group_value,
                     selected_features
                 )
+
+        if (
+            self.dock._temp_filter_is_active()
+            and total_picked > 0
+            and total_visible == 0
+        ):
+            QMessageBox.information(
+                self.dock,
+                "Filter Basket",
+                "Selected values were added to the full list, "
+                "but all are hidden by the active Preview Filter."
+            )
 
     def _handle_click(self, event):
 
@@ -342,9 +366,18 @@ class MRPickTool(QgsMapToolIdentify):
             if not added:
                 return
 
+            visible_cells = self.dock.selected_by_group.get(
+                msc_value, set()
+            )
             selected_features = []
+            total_visible = 0
 
             for cell in selected:
+
+                if cell not in visible_cells:
+                    continue
+
+                total_visible += 1
 
                 if cell in cell_feature_map:
 
@@ -352,7 +385,20 @@ class MRPickTool(QgsMapToolIdentify):
                         cell_feature_map[cell]
                     )
 
-            self.dock.highlight_features(
-                msc_value,
-                selected_features
-            )
+            if selected_features:
+                self.dock.highlight_features(
+                    msc_value,
+                    selected_features
+                )
+
+            if (
+                self.dock._temp_filter_is_active()
+                and len(selected) > 0
+                and total_visible == 0
+            ):
+                QMessageBox.information(
+                    self.dock,
+                    "Filter Basket",
+                    "Selected values were added to the full list, "
+                    "but all are hidden by the active Preview Filter."
+                )
