@@ -73,13 +73,13 @@ Selected values are displayed under bold, non-selectable headers in the form `Gr
 
 If the same value belongs to more than one group it appears under each group. Removing the value removes it everywhere. Removing a group keeps a shared value in the filter as long as another group still contains it.
 
-### Rectangle selection (beta)
+### Rectangle selection
 
 With **Activate Pick Tool** active, drag a rectangle on the map to select multiple source features. A **Select Source Values** dialog shows all values inside the rectangle, grouped by the Group Field, with all hits checked by default. Tick or untick values as needed, then click **Add Selected**. This works across one or multiple groups.
 
 ### Temporary preview filter
 
-Use **Include** or **Exclude** to temporarily narrow the Selected Target list without losing the original selection. Enter comma-separated substrings, for example `G18` or `G18,G21`, then click **Preview Filter**. Matching is case-insensitive and applies to Selected Target values.
+Use **Include** or **Exclude** to temporarily narrow the Selected Target list without losing the original selection. Enter comma-separated substrings, for example `1800` or `1800,2100`, then click **Preview Filter**. Matching is case-insensitive and applies to Selected Target values.
 
 - **Include** keeps only values containing any listed substring.
 - **Exclude** removes values containing any listed substring.
@@ -124,11 +124,11 @@ Right-click a value in **Selected Target** and choose **Remove**, or select it a
 With a Selected Target list containing values from two groups:
 
 ```text
-group1: BD4G18_4510324E_4, BD4G18_4510324E_5, BD4G18_4510324E_6, BD4G21_4510324E21_7, ...
-group2: BD4G18_4518333E_4, BD4G18_4518333E_5, BD4G18_4518333E_6, BD4G21_4518333E21_7, ...
+group1: SITE A_900_1, SITE A_1800_1, SITE A_2100_1, ...
+group2: SITE B_900_1, SITE B_1800_1, SITE B_2100_1, ...
 ```
 
-Enter `G18` in **Include** and click **Preview Filter**. Only G18 values remain, grouped as before. Click **Restore Full List** to return the original selection.
+Enter `1800` in **Include** and click **Preview Filter**. Only 1800 values remain, grouped as before. Click **Restore Full List** to return the original selection.
 
 ### Numeric target fields
 
